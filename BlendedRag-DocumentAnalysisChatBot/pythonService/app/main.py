@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from app.routes import healthRoutes, pdfRoutes
+
 app = FastAPI(title="Document AI Engine")
 
 #Registering routes

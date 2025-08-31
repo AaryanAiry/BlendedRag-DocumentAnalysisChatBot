@@ -5,3 +5,4 @@ pydantic
 numpy
 sentence_transformers
 requests
+python-multipart
