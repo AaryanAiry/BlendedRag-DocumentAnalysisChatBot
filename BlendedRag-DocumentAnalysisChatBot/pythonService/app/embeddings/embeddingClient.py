@@ -9,4 +9,4 @@ class EmbeddingClient:
         return np.array(self.model.encode(texts, convert_to_numpy=True, normalize_embeddings=True))
     
     def generateEmbedding(self, text: str) -> np.ndarray:
-        return self.getEmbeddings([text])[0]
+        return self.generateEmbeddings([text])[0]

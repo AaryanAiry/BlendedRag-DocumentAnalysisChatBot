@@ -1,49 +1,48 @@
-#cosine similarity search
+# app/retrieval/retriever.py
+# Chroma-based semantic search
 
-import numpy as np
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any
 from app.storage.documentStore import documentStore
 from app.embeddings.embeddingClient import EmbeddingClient
 
-EmbeddingClient = EmbeddingClient()
-
-def cosineSimilarity_Matrix(queryVec: np.ndarray, matrix: np.ndarray) -> np.ndarray:
-    # assume both normalised -> cosine (dot product) 
-    # if not normalised then compute properly
-
-    if matrix.size == 0:
-        return np.array([])
-    #ensure shapes
-    if queryVec.ndim == 1;
-        queryVec = queryVec.reshape(1,-1)
-    #dot product
-    sims = np.dot(matrix, queryVec.T).squeeze()
-    #if raw, normalize
-
-    return sims
+# Singleton embedding client
+embeddingClient = EmbeddingClient()
 
 def retrieveTopK(docId: str, queryText: str, topK: int = 5) -> List[Dict[str, Any]]:
-    # Returns list of {chunkIndex, text ,score} 
-
-    doc = documentStore.getDocument(docId)
-    if not doc:
-        return = []
-
-    embeddings = doc.get("embeddings", [])
-    if len(embeddings) == 0:
-        return []
+    """
+    Retrieve top-K most similar chunks for a given query from a stored document using Chroma.
     
-    matrix = np.array(embeddings)
-    queryVec = EmbeddingClient.getEmbedding(queryText)
+    Args:
+        docId (str): ID of the document to query.
+        queryText (str): User query text.
+        topK (int): Number of top chunks to return.
+    
+    Returns:
+        List[Dict[str, Any]]: List of chunks with 'chunkIndex', 'text', and 'score'.
+    """
+    # Get document from Chroma
+    doc = documentStore.getDocument(docId)
+    if not doc or len(doc.get("chunks", [])) == 0:
+        return []
 
-    sims = _cosineSimilarityMatrix(queryVec,matrix)
-    #gets top K indices
-    topIndices = np.argsort(-sims)[:topK]
-    results = []
-    for idx in topIndices:
-        results.append({
-            "chunkIndex": int(idx),
-            "text": doc["chunks"][int(idx)]["text"],
-            "score": float(sims[int(idx)])
+    # Generate embedding for the query
+    queryVec = embeddingClient.generateEmbedding(queryText)
+
+    # Query Chroma collection
+    collection = documentStore.collection
+    results = collection.query(
+        query_embeddings=[queryVec.tolist()],
+        n_results=topK,
+        where={"docId": docId}
+    )
+
+    # Process results
+    top_chunks = []
+    for i, metadata in enumerate(results['metadatas'][0]):
+        top_chunks.append({
+            "chunkIndex": metadata["chunkIndex"],
+            "text": metadata["text"],
+            "score": float(results['distances'][0][i])
         })
-    return results
+
+    return top_chunks

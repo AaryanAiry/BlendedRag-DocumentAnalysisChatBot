@@ -1,45 +1,93 @@
+# app/storage/documentStore.py
 from typing import Dict, Any, List
 import threading
+import numpy as np
+from app.storage.chromaClient import chromaClient
 
 class DocumentStore:
     def __init__(self):
-        self.store: Dict[str, Any] = {}
         self.lock = threading.Lock()
-        
-_document_store: Dict[str, Dict[str, Any]] = {}
+        # Chroma collection for all document chunks
+        self.collection = chromaClient.get_or_create_collection(
+            name="documents",
+            metadata={"description": "PDF chunks with embeddings"}
+        )
+        # In-memory metadata for quick access and listing
+        self._metadata: Dict[str, Dict[str, Any]] = {}
 
-def saveDocument(docId: str, data: Dict[str, Any]) -> None:
-    """
-    Save a document's metadata, chunks, and embeddings in memory.
-    """
-    _document_store[docId] = data
+    def saveDocument(self, docId: str, data: Dict[str, Any]) -> None:
+        """
+        Save document metadata + chunks + embeddings.
+        Chunks should be a list of dicts {"text": str}.
+        Embeddings should be a np.ndarray matching chunks length.
+        """
+        with self.lock:
+            chunks = data["chunks"]
+            embeddings = data.get("embeddings")
+            if embeddings is not None and len(chunks) != len(embeddings):
+                raise ValueError("Number of chunks and embeddings must match")
 
-def getDocument(docId: str) -> Dict[str, Any]:
-    """
-    Retrieve a stored document by its docId.
-    Returns None if not found.
-    """
-    return _document_store.get(docId)
-    # def saveDocument(self, docId: str, data: Dict):
-    #     with self.lock:
-    #         self.store[docId] = data
-    
-    # def getDocument(self, docId: str) -> Dict:
-    #     return self.store.get(docId)
-    
-    def listDocuments(self) -> List[Dict]:
-        # Return shallow metadata list
+            # Normalize chunks to dict format if needed
+            if chunks and isinstance(chunks[0], str):
+                chunks = [{"text": c} for c in chunks]
+
+            # Prepare vector data for Chroma
+            if embeddings is not None:
+                ids = [f"{docId}_{i}" for i in range(len(chunks))]
+                metadatas = [{"docId": docId, "chunkIndex": i, "text": chunk["text"]}
+                             for i, chunk in enumerate(chunks)]
+                self.collection.add(
+                    ids=ids,
+                    embeddings=embeddings.tolist(),
+                    metadatas=metadatas
+                )
+
+            # Store basic document metadata in-memory
+            self._metadata[docId] = {
+                "fileName": data.get("fileName"),
+                "pageCount": data.get("pageCount"),
+                "numChunks": len(data.get("chunks", []))
+            }
+
+    def getDocument(self, docId: str) -> Dict[str, Any] | None:
+        """
+        Retrieve document metadata + chunks from Chroma
+        """
+        with self.lock:
+            if docId not in self._metadata:
+                return None
+
+            # Retrieve chunks from Chroma
+            result = self.collection.query(
+                query_embeddings=[[0.0]],  # dummy query to filter by metadata
+                n_results=1000,
+                where={"docId": docId}
+            )
+            chunks = [{"text": md["text"]} for md in result['metadatas'] if "chunkIndex" in md]
+
+            metadata = self._metadata[docId]
+            return {
+                "docId": docId,
+                "fileName": metadata.get("fileName"),
+                "pageCount": metadata.get("pageCount"),
+                "chunks": chunks
+            }
+
+    def listDocuments(self) -> List[Dict[str, Any]]:
+        """Return shallow metadata list of all documents"""
         with self.lock:
             return [
-                {"docId": k, "fileName": v.get(fileName), "pageCount": v.get("pageCount"), "numChunks": len(v.get("chunks",[]))}
-                for k,v in self.store.items()
+                {"docId": docId, **meta} for docId, meta in self.metadataIndex.items()
             ]
 
     def deleteDocument(self, docId: str) -> bool:
+        """Delete all chunks and metadata for a document"""
         with self.lock:
-            if docId in self.store:
-                del self.store[docId]
-                return True
-            return False
-        
+            if docId in self.metadataIndex:
+                del self.metadataIndex[docId]
+            # delete from Chroma
+            self.collection.delete(where={"docId": docId})
+            return True
+
+# Singleton
 documentStore = DocumentStore()
