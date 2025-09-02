@@ -6,11 +6,9 @@ from app.pdfParser.chunker import chunkText
 from app.embeddings.embeddingClient import EmbeddingClient
 from app.storage.documentStore import documentStore
 from app.utils.logger import getLogger
-from chromadb.config import Settings
-import chromadb
 
-# Setup Chroma client (persistent)
-chromaClient = chromadb.Client(Settings(chroma_db_impl="duckdb+parquet", persist_directory="data/chroma"))
+# Import the shared Chroma client & collection
+from app.chromaClient import chromaClient, collection
 
 uploadDir = "data/uploads"
 logger = getLogger(__name__)
@@ -51,30 +49,23 @@ async def processPdf(file: UploadFile):
         documentStore.saveDocument(docId, {
             "fileName": file.filename,
             "pageCount": pageCount,
-            "chunks": [{"text": chunk} for chunk in chunks],
+            "chunks": [{"text": chunks[i]} for i in range(len(chunks))],
             "embeddings": embeddings
         })
 
-        # Save to Chroma
-        collection_name = "documents"
-        if collection_name not in [c.name for c in chromaClient.list_collections()]:
-            collection = chromaClient.create_collection(name=collection_name)
-        else:
-            collection = chromaClient.get_collection(name=collection_name)
-
-        # Prepare metadata for each chunk
-        metadatas = [{"docId": docId, "chunkIndex": i, "text": chunk} for i, chunk in enumerate(chunks)]
+        # Prepare metadata and IDs for Chroma
+        metadatas = [{"docId": docId, "chunkIndex": i, "text": chunks[i]} for i in range(len(chunks))]
         ids = [f"{docId}_{i}" for i in range(len(chunks))]
 
+        # Add chunks to shared Chroma collection
         collection.add(
-            embeddings=embeddings.tolist(),
+            embeddings=embeddings.tolist(),   # convert to list
+            documents=chunks,                 # list of strings
             metadatas=metadatas,
             ids=ids
         )
-        chromaClient.persist()
         logger.info(f"Saved {len(chunks)} chunks to Chroma for docId={docId}")
 
-        # Return response
         return {
             "docId": docId,
             "fileName": file.filename,

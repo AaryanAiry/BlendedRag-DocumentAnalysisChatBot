@@ -1,8 +1,11 @@
-# app/storage/documentStore.py
 from typing import Dict, Any, List
 import threading
-import numpy as np
-from app.storage.chromaClient import chromaClient
+from app.chromaClient import chromaClient
+from app.utils.logger import getLogger
+
+logger = getLogger(__name__)
+
+EMBEDDING_DIM = 384  # must match the embedding model
 
 class DocumentStore:
     def __init__(self):
@@ -16,11 +19,7 @@ class DocumentStore:
         self._metadata: Dict[str, Dict[str, Any]] = {}
 
     def saveDocument(self, docId: str, data: Dict[str, Any]) -> None:
-        """
-        Save document metadata + chunks + embeddings.
-        Chunks should be a list of dicts {"text": str}.
-        Embeddings should be a np.ndarray matching chunks length.
-        """
+        """Save document metadata + chunks + embeddings."""
         with self.lock:
             chunks = data["chunks"]
             embeddings = data.get("embeddings")
@@ -39,55 +38,62 @@ class DocumentStore:
                 self.collection.add(
                     ids=ids,
                     embeddings=embeddings.tolist(),
-                    metadatas=metadatas
+                    metadatas=metadatas,
+                    documents=[c["text"] for c in chunks]
                 )
 
             # Store basic document metadata in-memory
             self._metadata[docId] = {
                 "fileName": data.get("fileName"),
                 "pageCount": data.get("pageCount"),
-                "numChunks": len(data.get("chunks", []))
+                "numChunks": len(chunks)
             }
 
     def getDocument(self, docId: str) -> Dict[str, Any] | None:
-        """
-        Retrieve document metadata + chunks from Chroma
-        """
-        with self.lock:
-            if docId not in self._metadata:
-                return None
+        """Retrieve document chunks and metadata from Chroma."""
+        try:
+            # Use dummy embedding of correct dimension
+            dummy_embedding = [0.0] * EMBEDDING_DIM
 
-            # Retrieve chunks from Chroma
             result = self.collection.query(
-                query_embeddings=[[0.0]],  # dummy query to filter by metadata
+                query_embeddings=[dummy_embedding],
                 n_results=1000,
                 where={"docId": docId}
             )
-            chunks = [{"text": md["text"]} for md in result['metadatas'] if "chunkIndex" in md]
-
-            metadata = self._metadata[docId]
-            return {
-                "docId": docId,
-                "fileName": metadata.get("fileName"),
-                "pageCount": metadata.get("pageCount"),
-                "chunks": chunks
-            }
+            if result and len(result.get("documents", [])) > 0:
+                chunks = [
+                    {
+                        "chunkIndex": md["chunkIndex"],
+                        "text": md["text"],
+                        "score": 0.0
+                    }
+                    for md in result["metadatas"][0]
+                ]
+                metadata = self._metadata.get(docId, {})
+                return {
+                    "docId": docId,
+                    "fileName": metadata.get("fileName"),
+                    "pageCount": metadata.get("pageCount"),
+                    "chunks": chunks
+                }
+            return None
+        except Exception as e:
+            logger.error(f"Failed to retrieve document {docId}: {e}")
+            return None
 
     def listDocuments(self) -> List[Dict[str, Any]]:
-        """Return shallow metadata list of all documents"""
+        """Return shallow metadata list of all documents."""
         with self.lock:
-            return [
-                {"docId": docId, **meta} for docId, meta in self.metadataIndex.items()
-            ]
+            return [{"docId": docId, **meta} for docId, meta in self._metadata.items()]
 
     def deleteDocument(self, docId: str) -> bool:
-        """Delete all chunks and metadata for a document"""
+        """Delete all chunks and metadata for a document."""
         with self.lock:
-            if docId in self.metadataIndex:
-                del self.metadataIndex[docId]
+            if docId in self._metadata:
+                del self._metadata[docId]
             # delete from Chroma
             self.collection.delete(where={"docId": docId})
             return True
 
-# Singleton
+# Singleton instance
 documentStore = DocumentStore()

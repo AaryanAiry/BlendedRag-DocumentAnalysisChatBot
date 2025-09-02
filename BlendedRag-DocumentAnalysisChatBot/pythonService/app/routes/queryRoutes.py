@@ -4,16 +4,18 @@ from pydantic import BaseModel
 from typing import List
 import re
 from app.retrieval.queryRefiner import expandQuery, basicPreprocess
-from app.retrieval.retriever import retrieveTopK
 from app.embeddings.embeddingClient import EmbeddingClient
 from app.storage.documentStore import documentStore
 from app.utils.logger import getLogger
 
+# Import shared Chroma client & collection
+from app.chromaClient import chromaClient, collection
+
 router = APIRouter()
 logger = getLogger(__name__)
-embedding_client = EmbeddingClient()  # singleton client
+embedding_client = EmbeddingClient()  # singleton embedding client
 
-# Request and Response models
+# --- Models ---
 class QueryRequest(BaseModel):
     docId: str
     query: str
@@ -24,36 +26,17 @@ class RetrievedChunk(BaseModel):
     chunkIndex: int
     text: str
     score: float
-    snippet: str = ""  # top sentences snippet
+    snippet: str = ""
 
 class QueryResponse(BaseModel):
     docId: str
     query: str
     refinedQueries: List[str]
     results: List[RetrievedChunk]
-    mergedBlocks: List[str]  # merged blocks for context window
+    mergedBlocks: List[str]
 
 # --- Helper functions ---
-def fuseResultsRRF(resultsList: list[list[dict]], k: int = 60):
-    """Fuse multiple query results using Reciprocal Rank Fusion (RRF)."""
-    scoreMap = {}
-    for results in resultsList:
-        for rank, r in enumerate(results, start=1):
-            idx = r["chunkIndex"]
-            text = r["text"]
-            score = 1 / (k + rank)
-            if idx in scoreMap:
-                scoreMap[idx]["score"] += score
-            else:
-                scoreMap[idx] = {"score": score, "text": text}
-    fused = sorted(
-        [{"chunkIndex": idx, "text": v["text"], "score": v["score"]} for idx, v in scoreMap.items()],
-        key=lambda x: -x["score"]
-    )
-    return fused
-
 def mergeTopChunks(chunks: list[dict], maxTokens: int = 500):
-    """Merge chunks sequentially until maxTokens is reached."""
     merged = []
     current_block = ""
     current_tokens = 0
@@ -72,13 +55,33 @@ def mergeTopChunks(chunks: list[dict], maxTokens: int = 500):
     return merged
 
 def getTopSentences(text: str, query: str, top_n: int = 3):
-    """Return top-n sentences containing query terms."""
     sentences = re.split(r'(?<=[.!?]) +', text)
     query_terms = set(query.lower().split())
     scores = [(len(set(s.lower().split()) & query_terms), s) for s in sentences]
     scores.sort(reverse=True)
-    top_sentences = [s for _, s in scores[:top_n]]
-    return " ".join(top_sentences)
+    return " ".join([s for _, s in scores[:top_n]])
+
+def chromaRetrieveTopK(doc_id: str, query: str, topK: int = 5):
+    """Perform similarity search using ChromaDB for a specific document."""
+    # Generate embedding for query
+    query_embedding = embedding_client.generateEmbedding(query)
+    query_embedding_2d = query_embedding.reshape(1, -1).tolist()  # shape (1, 384)
+    results = collection.query(
+        query_embeddings=query_embedding_2d,
+        where={"docId": doc_id},
+        n_results=topK
+    )
+
+
+    chunks = []
+    if results and len(results.get("documents", [])) > 0:
+        for i, text in enumerate(results["documents"][0]):
+            chunks.append({
+                "chunkIndex": results["metadatas"][0][i]["chunkIndex"],
+                "text": text,
+                "score": float(results["distances"][0][i])
+            })
+    return chunks
 
 # --- API Endpoint ---
 @router.post("/api/query", response_model=QueryResponse)
@@ -89,17 +92,13 @@ def queryEndpoint(req: QueryRequest):
 
     refinedQueries = expandQuery(req.query) if req.refine else [basicPreprocess(req.query)]
 
-    # Retrieve top-K chunks for each refined query
-    resultsList = [retrieveTopK(req.docId, q, topK=req.topK) for q in refinedQueries]
+    # Retrieve with each refined query (simple: use first for now)
+    resultsList = [chromaRetrieveTopK(req.docId, q, topK=req.topK) for q in refinedQueries]
+    fusedChunks = resultsList[0] if resultsList else []
 
-    # Fuse results using RRF
-    fusedChunks = fuseResultsRRF(resultsList, k=60)[:req.topK]
-
-    # Add snippet highlighting
     for chunk in fusedChunks:
         chunk["snippet"] = getTopSentences(chunk["text"], req.query, top_n=3)
 
-    # Merge top chunks for context window
     mergedBlocks = mergeTopChunks(fusedChunks, maxTokens=500)
 
     logger.info(f"Query for docId={req.docId} returned {len(fusedChunks)} chunks and {len(mergedBlocks)} merged blocks")
@@ -119,8 +118,6 @@ def queryEndpoint(req: QueryRequest):
         ],
         mergedBlocks=mergedBlocks
     )
-
-
 
 # from fastapi import APIRouter, HTTPException
 # from pydantic import BaseModel
