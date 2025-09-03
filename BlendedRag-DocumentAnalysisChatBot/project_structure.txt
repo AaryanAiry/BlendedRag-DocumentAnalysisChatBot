@@ -1,0 +1,54 @@
+.
+├── docs
+├── project_structure.txt
+├── pythonService
+│   ├── app
+│   │   ├── chromaClient.py
+│   │   ├── config.py
+│   │   ├── data
+│   │   ├── embeddings
+│   │   ├── __init__.py
+│   │   ├── llm
+│   │   ├── main.py
+│   │   ├── pdfParser
+│   │   ├── ragService.py
+│   │   ├── retrieval
+│   │   ├── routes
+│   │   ├── schemas.py
+│   │   ├── scripts
+│   │   ├── storage
+│   │   ├── utils
+│   │   └── visualization
+│   ├── data
+│   │   ├── cache
+│   │   ├── chroma
+│   │   ├── chunks
+│   │   ├── embeddings
+│   │   ├── __init__.py
+│   │   ├── sample.pdf
+│   │   ├── uploads
+│   │   └── visualizations
+│   ├── __init__.py
+│   ├── testChromaIngestion.py
+│   ├── testChroma.py
+│   ├── testQueryEmbedding.py
+│   └── tests
+│       ├── testBlendedRetreiver.py
+│       ├── testLlmIntegration.py
+│       ├── testQueryRefiner.py
+│       └── testVisualization.py
+├── README.md
+├── requirements.txt
+└── springBootService
+    ├── main.java
+    ├── pom.xml
+    ├── resources
+    │   ├── application.yml
+    │   └── templates
+    └── src
+        ├── config
+        ├── controller
+        ├── ragApplication.java
+        └── service
+
+29 directories, 23 files
