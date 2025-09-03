@@ -6,27 +6,129 @@
 │   │   ├── chromaClient.py
 │   │   ├── config.py
 │   │   ├── data
+│   │   │   └── chroma
 │   │   ├── embeddings
+│   │   │   └── embeddingClient.py
 │   │   ├── __init__.py
 │   │   ├── llm
+│   │   │   ├── llmClient.py
+│   │   │   ├── models
+│   │   │   ├── postProcessor.py
+│   │   │   └── promptTemplate.py
 │   │   ├── main.py
 │   │   ├── pdfParser
+│   │   │   ├── chunker.py
+│   │   │   ├── ingestor.py
+│   │   │   ├── parser.py
+│   │   │   └── tests
+│   │   ├── rag
+│   │   │   └── prompts.py
 │   │   ├── ragService.py
 │   │   ├── retrieval
+│   │   │   ├── blendedRetriever.py
+│   │   │   ├── bm25Retriever.py
+│   │   │   ├── denseRetreiver.py
+│   │   │   ├── iterativeRetriever.py
+│   │   │   ├── queryRefiner.py
+│   │   │   ├── retriever.py
+│   │   │   ├── scoring.py
+│   │   │   └── sparseRetriever.py
 │   │   ├── routes
+│   │   │   ├── adminRoutes.py
+│   │   │   ├── documentRoutes.py
+│   │   │   ├── healthRoutes.py
+│   │   │   ├── pdfRoutes.py
+│   │   │   ├── queryRoutes.py
+│   │   │   └── ragRoutes.py
 │   │   ├── schemas.py
 │   │   ├── scripts
+│   │   │   ├── app
+│   │   │   ├── dev-start.sh
+│   │   │   ├── downloadModel.py
+│   │   │   ├── ingestPdf.py
+│   │   │   ├── modelTest.py
+│   │   │   ├── runRetrievalDemo.py
+│   │   │   ├── runVisualizationDemo.py
+│   │   │   └── sample.pdf
 │   │   ├── storage
+│   │   │   └── documentStore.py
 │   │   ├── utils
+│   │   │   ├── exceptions.py
+│   │   │   ├── fileUtils.py
+│   │   │   ├── logger.py
+│   │   │   ├── schemas.py
+│   │   │   └── textCleaner.py
 │   │   └── visualization
+│   │       ├── chartGenerator.py
+│   │       ├── detector.py
+│   │       ├── flowchartGenerator.py
+│   │       ├── tableGenerator.py
+│   │       └── visualizer.py
 │   ├── data
 │   │   ├── cache
 │   │   ├── chroma
+│   │   │   ├── abfa730c-eccd-42af-a588-4b1eda6abfab
+│   │   │   └── chroma.sqlite3
 │   │   ├── chunks
 │   │   ├── embeddings
 │   │   ├── __init__.py
 │   │   ├── sample.pdf
 │   │   ├── uploads
+│   │   │   ├── 01cecf6b-8e0a-4c94-8eb7-9ab324b8fa07.pdf
+│   │   │   ├── 02d7b754-b8bd-4b9b-a090-4d6b5c92d6c7_sample.pdf
+│   │   │   ├── 05f96bcd-a412-44ae-bca0-21d71eb5e294_sample.pdf
+│   │   │   ├── 080d2421-ec02-407a-a6ee-ffcc046484a9_sample.pdf
+│   │   │   ├── 10a327cd-e68a-413c-a20e-9d28367016e4_sample.pdf
+│   │   │   ├── 1552d01a-dcc2-4131-9599-62a3a2041c8d.pdf
+│   │   │   ├── 1ecd2979-923d-461a-b9e3-048f935c8333_sample.pdf
+│   │   │   ├── 30c206ec-b766-4aec-9bb8-be0d88e4debd.pdf
+│   │   │   ├── 375eaf61-f408-463e-85bf-ae431bc4f501_sample.pdf
+│   │   │   ├── 3942d977-9873-4851-85da-168e6e04cac3_sample.pdf
+│   │   │   ├── 3a995b74-2e0d-40fe-9d98-74c065aeaab7.pdf
+│   │   │   ├── 41d28c56-b2ca-4c86-9098-30d9dfa1779b.pdf
+│   │   │   ├── 427b457c-d252-4bfb-99c4-5d28e3eeef74_sample.pdf
+│   │   │   ├── 4361198f-bdb8-4eca-a0d3-00363ed63033_sample.pdf
+│   │   │   ├── 44652577-7308-48ed-a000-ab0138fdd692_sample.pdf
+│   │   │   ├── 5012ea06-921b-4c43-83f6-aa2845528eeb_sample.pdf
+│   │   │   ├── 5174acbb-0cbc-49d9-8afc-e60c53f9e4c5.pdf
+│   │   │   ├── 58e785cc-a146-416f-859c-1689c93027c8_sample.pdf
+│   │   │   ├── 5999492f-6969-46c0-a9c2-24e31168047a_sample.pdf
+│   │   │   ├── 59e24685-f008-4074-8c0e-8f25469f6396_sample.pdf
+│   │   │   ├── 646489bd-f96c-40e6-86ff-ebf100b54797.pdf
+│   │   │   ├── 64fa45ab-525b-4fdf-888f-b9a302ab0077.pdf
+│   │   │   ├── 66bfc00a-891b-4542-a9ed-07ca811a0425_sample.pdf
+│   │   │   ├── 67e87451-837d-420a-9f01-8fcc2bae4629_sample.pdf
+│   │   │   ├── 6cf63ecf-7ce9-4ac9-a81d-f7ab4bac0b96_sample.pdf
+│   │   │   ├── 7112f002-a661-4ac5-a2c6-7b1b851522bd.pdf
+│   │   │   ├── 71f4e512-33b9-466d-a9a2-9c8deb89d55e_sample.pdf
+│   │   │   ├── 74d8c8f6-7256-4132-afdf-269033f9a609.pdf
+│   │   │   ├── 7e5e5b9a-3c72-49f7-a214-b13e3bedeef8.pdf
+│   │   │   ├── 87a01639-dfe9-4564-bfcc-7ed9d8128025.pdf
+│   │   │   ├── 87ff44f7-520b-4e24-8723-20e62f1cc1e6.pdf
+│   │   │   ├── 8df91658-30db-4ae5-bad9-4f7a44c50599.pdf
+│   │   │   ├── 91de8ae4-adfd-4ca9-9887-68b8a837a454.pdf
+│   │   │   ├── 93fefd10-470b-4c7e-9ed2-890718e0a4cd.pdf
+│   │   │   ├── 949d6240-9109-47b8-8ce4-98fa7de17377_sample.pdf
+│   │   │   ├── 9f87221a-634c-43f2-bd9f-936261479aa0_sample.pdf
+│   │   │   ├── a53cfa1f-b3a4-4fb9-b19c-fc7d1db558ea_sample.pdf
+│   │   │   ├── a7d0ca70-4c04-476a-a8bf-b1d85d6e29eb.pdf
+│   │   │   ├── b95d004e-253e-408b-a594-f0d2bb682cd5.pdf
+│   │   │   ├── b965ed29-2d00-41f0-aa1a-9da9ff9d66ba_sample.pdf
+│   │   │   ├── bc19f61a-4af8-412b-b622-1a7c2ddc4f38.pdf
+│   │   │   ├── be02be22-8918-4d29-b3d2-d9686dab1c15_sample.pdf
+│   │   │   ├── befeab6e-87be-4b79-adde-8de35a258c0a_sample.pdf
+│   │   │   ├── c1880f95-e6b0-4fc1-8ac1-83d491df1cf5.pdf
+│   │   │   ├── c937e6a6-7433-419d-b0ab-4e1a319886f9.pdf
+│   │   │   ├── ccbab63a-b610-4e4b-a59b-4ce28482cd8d_sample.pdf
+│   │   │   ├── d1e4624a-0760-4fa3-b93a-4e6db4a751e3_sample.pdf
+│   │   │   ├── d4e99575-485c-4948-be23-490603b1fc54.pdf
+│   │   │   ├── d7d3875f-92cf-4272-a32e-102ecff66740.pdf
+│   │   │   ├── f0f8643e-aebf-4e16-92eb-f1d4c444aa94_sample.pdf
+│   │   │   ├── f124b9e0-c380-402e-9029-57aa0125b96b.pdf
+│   │   │   ├── f1bc0e09-c3d6-4880-a900-e86ed4cd100b.pdf
+│   │   │   ├── f419651a-b475-44f9-9146-d88945db1ebb.pdf
+│   │   │   ├── f9d72705-b1b1-457e-953e-06cf35dedcea.pdf
+│   │   │   └── fd190712-70f7-4e11-b09b-3483bcc50fd7_sample.pdf
 │   │   └── visualizations
 │   ├── __init__.py
 │   ├── testChromaIngestion.py
@@ -47,8 +149,13 @@
     │   └── templates
     └── src
         ├── config
+        │   └── restTemplateconfig.java
         ├── controller
+        │   ├── pdfController.java
+        │   └── queryController.java
         ├── ragApplication.java
         └── service
+            ├── pdfService.java
+            └── queryService.java
 
-29 directories, 23 files
+35 directories, 124 files

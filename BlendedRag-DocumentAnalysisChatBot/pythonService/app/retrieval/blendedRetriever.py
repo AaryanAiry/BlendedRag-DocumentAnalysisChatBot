@@ -1,69 +1,58 @@
-# app/retrieval/blendedRetriever.py
-from typing import List, Dict, Any, Tuple
-import math
+# app/retrievers/blendedRetriever.py
+from typing import List, Dict
+from app.retrievers.denseRetriever import denseRetriever
+from app.retrievers.sparseRetriever import sparseRetriever
+from app.utils.logger import getLogger
+
+logger = getLogger(__name__)
 
 class BlendedRetriever:
-    def __init__(self, chroma_client, embedding_fn, bm25_store=None):
+    def __init__(self, alpha: float = 0.6):
         """
-        chroma_client: Your existing Chroma client instance.
-        embedding_fn: Callable to generate embeddings for queries.
-        bm25_store: Optional BM25 index object (if using local or on-disk).
+        alpha: weight for dense retriever (0.6 = 60% dense, 40% sparse)
         """
-        self.chroma = chroma_client
-        self.embedding_fn = embedding_fn
-        self.bm25_store = bm25_store
+        self.alpha = alpha
 
-    def _reciprocal_rank_fusion(self, results: Dict[str, List[Tuple[str, float]]], weights: Dict[str, float]) -> List[Tuple[str, float]]:
-        """
-        Fuse BM25 and Dense scores using Reciprocal Rank Fusion (RRF) with weights.
-        results: {"bm25": [(doc_id, score), ...], "dense": [(doc_id, score), ...]}
-        weights: {"bm25": float, "dense": float}
-        """
-        fused = {}
-        k = 60  # RRF constant
-        for source, docs in results.items():
-            w = weights.get(source, 0.5)
-            for rank, (doc_id, _) in enumerate(docs, start=1):
-                score = w * (1 / (k + rank))
-                fused[doc_id] = fused.get(doc_id, 0) + score
-        return sorted(fused.items(), key=lambda x: x[1], reverse=True)
+    def _normalize(self, scores: List[float]) -> List[float]:
+        if not scores:
+            return []
+        min_s, max_s = min(scores), max(scores)
+        if max_s - min_s == 0:
+            return [0.5] * len(scores)  # neutral if all scores same
+        return [(s - min_s) / (max_s - min_s) for s in scores]
 
-    def retrieve(self, doc_id: str, collection_name: str, queries: List[str], keywords: List[str], top_k_each: int = 20, top_k_final: int = 10) -> List[Dict[str, Any]]:
+    def query(self, doc_id: str, query: str, top_k: int = 5) -> List[Dict]:
         """
-        Blended retrieval.
-        - queries: list of query variants (from RQ)
-        - keywords: high-value tokens (from RQ)
+        Blends dense (semantic) and sparse (keyword) scores.
+        Returns ranked chunks.
         """
-        results = {"bm25": [], "dense": []}
+        dense_results = denseRetriever.query(doc_id, query, top_k=top_k)
+        sparse_results = sparseRetriever.query(doc_id, query, top_k=top_k)
 
-        # --- BM25 retrieval (if available) ---
-        if self.bm25_store:
-            bm25_docs = self.bm25_store.search(doc_id, keywords or queries, top_k=top_k_each)
-            results["bm25"] = [(doc["id"], doc["score"]) for doc in bm25_docs]
+        # Extract scores & chunks
+        dense_scores = self._normalize([r["score"] for r in dense_results])
+        sparse_scores = self._normalize([r["score"] for r in sparse_results])
 
-        # --- Dense retrieval (Chroma) ---
-        embeddings = [self.embedding_fn(q) for q in queries]
-        dense_docs = self.chroma.query(
-            collection_name=collection_name,
-            query_embeddings=embeddings,
-            n_results=top_k_each
+        combined = {}
+
+        # Merge dense first
+        for i, r in enumerate(dense_results):
+            combined[r["chunk"]] = self.alpha * dense_scores[i]
+
+        # Merge sparse (add weighted)
+        for i, r in enumerate(sparse_results):
+            if r["chunk"] in combined:
+                combined[r["chunk"]] += (1 - self.alpha) * sparse_scores[i]
+            else:
+                combined[r["chunk"]] = (1 - self.alpha) * sparse_scores[i]
+
+        ranked = sorted(
+            [{"chunk": c, "score": s} for c, s in combined.items()],
+            key=lambda x: x["score"],
+            reverse=True
         )
-        dense_pairs = []
-        for doc in dense_docs["documents"]:
-            for d in doc:
-                dense_pairs.append((d["id"], d["score"]))
-        results["dense"] = dense_pairs
 
-        # --- Fuse ---
-        weights = {"bm25": 0.5, "dense": 0.5}  # can be overridden by RQ weightingHint
-        fused = self._reciprocal_rank_fusion(results, weights)
+        return ranked[:top_k]
 
-        # --- Retrieve metadata ---
-        final_docs = []
-        seen = set()
-        for doc_id, score in fused[:top_k_final]:
-            if doc_id not in seen:
-                meta = self.chroma.get_document_metadata(collection_name, doc_id)
-                final_docs.append({"id": doc_id, "score": score, "metadata": meta})
-                seen.add(doc_id)
-        return final_docs
+# Singleton instance
+blendedRetriever = BlendedRetriever()
