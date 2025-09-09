@@ -9,7 +9,7 @@ class DenseRetriever:
     def query(self, collection_name: str, q: str, top_k: int=20) -> List[Dict]:
         col = self.chroma.get_or_create_collection(collection_name)
         res = col.query(query_texts=[q], n_results=top_k,
-                        include=["documents","metadatas","distances","ids"])
+                        include=["documents","metadatas","distances"])
         out = []
         for i, cid in enumerate(res["ids"][0]):
             out.append({

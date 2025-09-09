@@ -6,6 +6,7 @@ from app.pdfParser.chunker import chunkText
 from app.embeddings.embeddingClient import EmbeddingClient
 from app.storage.documentStore import documentStore
 from app.utils.logger import getLogger
+from app.retrieval.sparseRetriever import sparseRetriever
 
 # Import the shared Chroma client & collection
 from app.chromaClient import chromaClient, collection
@@ -45,6 +46,15 @@ async def processPdf(file: UploadFile):
         embeddings = embeddingClient.generateEmbeddings(chunks)
         logger.info(f"Generated embeddings for {len(chunks)} chunks")
 
+
+        # Prepare metadata and IDs for Chroma
+        metadatas = [{"docId": docId, "chunkIndex": i, "text": chunks[i]} for i in range(len(chunks))]
+        ids = [f"{docId}_{i}" for i in range(len(chunks))]
+
+        # Build and cache BM25 index
+        sparseRetriever.indexDocument(docId, chunks, ids)
+        logger.info(f"BM25 index built for docId={docId}")
+
         # Save document in memory
         documentStore.saveDocument(docId, {
             "fileName": file.filename,
@@ -53,10 +63,7 @@ async def processPdf(file: UploadFile):
             "embeddings": embeddings
         })
 
-        # Prepare metadata and IDs for Chroma
-        metadatas = [{"docId": docId, "chunkIndex": i, "text": chunks[i]} for i in range(len(chunks))]
-        ids = [f"{docId}_{i}" for i in range(len(chunks))]
-
+        
         # Add chunks to shared Chroma collection
         collection.add(
             embeddings=embeddings.tolist(),   # convert to list

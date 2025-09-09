@@ -1,4 +1,4 @@
-# app/storage/chromaClient.py
+# app/chromaClient.py
 import chromadb
 
 # Persistent Chroma client using new API

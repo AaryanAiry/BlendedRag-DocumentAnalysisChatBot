@@ -18,7 +18,7 @@ EMBEDDING_MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"  # local model
 EMBEDDING_DIMENSION = 384  # for all-MiniLM-L6-v2
 
 # === Chunking Settings ===
-CHUNK_SIZE = 500  # characters per chunk
+CHUNK_SIZE = 300  # characters per chunk
 CHUNK_OVERLAP = 50  # characters overlap to maintain context
 
 # === Retrieval Settings ===
@@ -26,7 +26,7 @@ TOP_K = 5  # number of chunks to retrieve during search
 COSINE_SIMILARITY_THRESHOLD = 0.3  # minimum relevance for a match
 
 # === LLM Settings (to be integrated later) ===
-LLM_MODEL_NAME = "mistral-7b-instruct"  # placeholder for local LLM
+LLM_MODEL_NAME = "models/qwen2.5-3b-instruct-q5_k_m.gguf"  # placeholder for local LLM
 
 # === Miscellaneous ===
 ALLOWED_FILE_TYPES = [".pdf"]

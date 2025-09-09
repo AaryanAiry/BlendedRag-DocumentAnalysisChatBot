@@ -1,77 +1,50 @@
-# pythonService/app/ragService.py
-
+# app/rag/ragService.py
 import os
-import torch
-from transformers import AutoTokenizer, AutoModelForCausalLM, BitsAndBytesConfig
-from app.storage.documentStore import documentStore
 from app.utils.logger import getLogger
-from app.rag.queryRefiner import refine_query_intelligent
-from app.retrieval.blendedRetriever import BlendedRetriever
-from app.embeddings.embeddingClient import embedding_fn
-from app.chromaClient import get_chroma_client
+from app.storage.documentStore import documentStore
+from app.retrieval.queryRefiner import refine_query_intelligent
+from app.retrieval.blendedRetriever import blendedRetriever
+from app.embeddings.embeddingClient import EmbeddingClient
+from app.llm.llmClient import llmClient  # Qwen wrapper
+from app.llm.postProcessor import post_process_answer 
+from app.routes.queryRoutes import getTopSentences
 
 logger = getLogger(__name__)
 
 # -------------------------------
-# Load Mistral-7B model (CPU safe)
+# Initialize Embedding Client
 # -------------------------------
-
-MODEL_PATH = "/mnt/MyLinuxSpace/hf_cache/Mistral-7B"
-
-if not os.path.exists(MODEL_PATH):
-    raise ValueError(f"Local model path does not exist: {MODEL_PATH}")
-
-# Force CPU to avoid GPU OOM
-device = "cpu"
-logger.info(f"Loading Mistral-7B from local path on device: {device}")
-
-# Tokenizer
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-
-# 8-bit quantization + CPU offload for safety
-bnb_config = BitsAndBytesConfig(
-    load_in_8bit=True,
-    llm_int8_enable_fp32_cpu_offload=True,
-    cpu_offload=True
-)
-
-model = AutoModelForCausalLM.from_pretrained(
-    MODEL_PATH,
-    quantization_config=bnb_config,
-    device_map={"": "cpu"},   # ensure full CPU
-    low_cpu_mem_usage=True,
-    offload_folder="./offload"
-)
-
-logger.info("Mistral-7B loaded successfully from local path")
+embedding_client = EmbeddingClient()
 
 # -------------------------------
 # Helper Functions
 # -------------------------------
+def build_rag_prompt(query: str, chunks: list, max_context_tokens: int = 300) -> str:
+    accumulated_tokens = 0
+    context_parts = []
+    for chunk in chunks:
+        text = chunk.get("text", "")
+        est_tokens = len(text) // 4
+        if accumulated_tokens + est_tokens > max_context_tokens:
+            break
+        context_parts.append(text)
+        accumulated_tokens += est_tokens
 
-def build_rag_prompt(query: str, chunks: list) -> str:
-    """
-    Build a combined context + query prompt for Mistral.
-    """
-    context = "\n\n".join([chunk["text"] for chunk in chunks if chunk.get("text")])
-    return f"Answer the question based on the context below:\n\n{context}\n\nQuestion: {query}\nAnswer:"
+    context = "\n\n".join(context_parts)
+    return (
+        f"Answer the following question using only the provided context.\n"
+        f"If the answer is not directly in the context, give your best summary based on it.\n\n"
+        f"Context:\n{context}\n\n"
+        f"Question: {query}\nAnswer:"
+    )
+
 
 def generate_answer(prompt: str, max_tokens: int = 512, temperature: float = 0.7) -> str:
     """
-    Generate answer from Mistral-7B safely in small batches on CPU
+    Generate answer from Qwen model.
     """
     try:
-        inputs = tokenizer(prompt, return_tensors="pt")
-        inputs = {k: v.to(device) for k, v in inputs.items()}
-
-        output_ids = model.generate(
-            **inputs,
-            max_new_tokens=max_tokens,
-            temperature=temperature,
-            do_sample=True,
-            pad_token_id=tokenizer.eos_token_id
-        )
-        return tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        return llmClient.generateAnswer(prompt, max_tokens=max_tokens, temperature=temperature)
     except Exception as e:
         logger.error(f"Error generating answer: {e}")
         return "Error generating answer"
@@ -79,10 +52,9 @@ def generate_answer(prompt: str, max_tokens: int = 512, temperature: float = 0.7
 # -------------------------------
 # Blended RAG Service
 # -------------------------------
-
 def query_document(docId: str, user_query: str, topK: int = 5) -> dict:
     """
-    Query a document using RQ + Blended Retriever + Mistral
+    Query a document using Query Refinement + Blended Retriever + Qwen + PostProcessor
     """
     doc = documentStore.getDocument(docId)
     if not doc:
@@ -93,45 +65,47 @@ def query_document(docId: str, user_query: str, topK: int = 5) -> dict:
     rq = refine_query_intelligent(user_query)
 
     # Step 2: Blended Retrieval
-    chroma = get_chroma_client()
-    retriever = BlendedRetriever(chroma_client=chroma, embedding_fn=embedding_fn)
-    collection = f"doc_{docId}"
-
-    retrieved_docs = retriever.retrieve(
+    retrieved_docs = blendedRetriever.query(
         doc_id=docId,
-        collection_name=collection,
-        queries=rq["variants"],
-        keywords=rq["keywords"],
-        top_k_final=topK
+        query=rq.get("refinedQuery", user_query),
+        top_k=topK
     )
 
-    # Extract chunk texts for RAG prompt
-    top_chunks = []
-    for d in retrieved_docs:
-        if "metadata" in d and "text" in d["metadata"]:
-            top_chunks.append({"text": d["metadata"]["text"]})
+    # Extract text chunks
+    # top_chunks = [{"text": d.get("chunk")} for d in retrieved_docs[:3] if d.get("chunk")]
+    top_chunks =     [
+        {"text": getTopSentences(d.get("chunk"), user_query, top_n=2)}
+        for d in retrieved_docs[:5] if d.get("chunk")
+    ]
 
-    # Step 3: Generate Answer
+    # Step 3: Generate Raw Answer
     prompt = build_rag_prompt(user_query, top_chunks)
-    answer = generate_answer(prompt)
+    raw_answer = generate_answer(prompt,max_tokens=120)
+
+    # Step 4: Post-process Answer
+    final_answer = post_process_answer(
+        raw_answer,
+        query=user_query,
+        context_chunks=top_chunks
+    )
 
     return {
         "docId": docId,
         "originalQuery": user_query,
         "queryRefinement": rq,
         "retrievedChunks": retrieved_docs,
-        "answer": answer
+        "rawAnswer": raw_answer,          # Keep for debugging
+        "finalAnswer": final_answer       # Use this for production
     }
 
 # -------------------------------
 # Optional: Refinement function
 # -------------------------------
-
 def refine_answer(query: str, initial_answer: str, top_chunks: list) -> str:
     """
-    Refine an initial answer by re-prompting Mistral with context
+    Refine an initial answer by re-prompting Qwen with context
     """
-    context = "\n\n".join([chunk["text"] for chunk in top_chunks if chunk.get("text")])
+    context = "\n\n".join([chunk.get("text", "") for chunk in top_chunks if chunk.get("text")])
     prompt = (
         f"Given the following context:\n{context}\n\n"
         f"The previous answer to the question '{query}' was: '{initial_answer}'.\n"

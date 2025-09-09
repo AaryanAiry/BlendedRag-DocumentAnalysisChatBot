@@ -1,62 +1,66 @@
 # app/llm/llmClient.py
-import torch
-from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+from llama_cpp import Llama
 from app.utils.logger import getLogger
+import os
 
 logger = getLogger(__name__)
 
 class LLMClient:
-    def __init__(self, model_name: str = "mistralai/Mistral-7B-Instruct"):
+    def __init__(self, model_path: str = "models/qwen2.5-3b-instruct-q5_k_m.gguf"):
         """
-        Initializes the LLM client.
-        Automatically detects GPU if available, otherwise falls back to CPU.
+        Initializes the LLM client for local Qwen model inference.
+        Uses CPU by default. If compiled with GPU support in llama_cpp, will use GPU automatically.
         """
-        self.model_name = model_name
+        self.model_path = model_path
 
-        # Check device
-        self.device = 0 if torch.cuda.is_available() else -1
-        if self.device == 0:
-            logger.info("GPU detected. Using GPU for inference.")
-        else:
-            logger.info("No GPU detected. Using CPU for inference. Performance will be slower.")
-
-        # Load tokenizer
-        logger.info(f"Loading tokenizer for {model_name}...")
-        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        if not os.path.exists(self.model_path):
+            raise ValueError(f"Model path does not exist: {self.model_path}")
+        logger.info(f"Loading Qwen model from: {self.model_path} ...")
 
         # Load model
-        logger.info(f"Loading model {model_name}...")
-        self.model = AutoModelForCausalLM.from_pretrained(
-            model_name,
-            device_map="auto" if self.device == 0 else None,
-            torch_dtype=torch.float16 if self.device == 0 else torch.float32
-        )
+        try:
+            self.llm = Llama(model_path=self.model_path)
+            logger.info("Qwen LLM loaded successfully.")
+        except Exception as e:
+            logger.error(f"Failed to load Qwen model: {e}")
+            raise e
 
-        # Initialize text-generation pipeline
-        logger.info("Initializing text-generation pipeline...")
-        self.generator = pipeline(
-            "text-generation",
-            model=self.model,
-            tokenizer=self.tokenizer,
-            device=self.device
-        )
-        logger.info("LLMClient ready.")
+    # def generateAnswer(self, prompt: str, max_tokens: int = 256, temperature: float = 0.7) -> str:
+    #     """
+    #     Generate an answer for the given prompt using Qwen.
+    #     """
+    #     try:
+    #         output = self.llm(prompt=prompt, max_tokens=max_tokens, temperature=temperature)
+    #         # Llama_cpp returns a dict with 'choices' -> 'text'
+    #         if 'choices' in output and len(output['choices']) > 0:
+    #             return output['choices'][0]['text'].strip()
+    #         return ""
+    #     except Exception as e:
+    #         logger.error(f"Qwen generation failed: {e}")
+    #         return "Error: Failed to generate answer."
 
-    def generateAnswer(self, prompt: str, max_tokens: int = 256, temperature: float = 0.7) -> str:
+    def generateAnswer(self, prompt: str, max_tokens: int = None, temperature: float = 0.7) -> str:
         """
-        Generate an answer for the given prompt.
+        Generate an answer for the given prompt using Qwen.
+        Dynamically adjusts max_tokens based on prompt length if not provided.
         """
         try:
-            response = self.generator(
-                prompt,
-                max_new_tokens=max_tokens,
-                temperature=temperature,
-                do_sample=True
-            )
-            return response[0]['generated_text']
+            # Estimate tokens in prompt (roughly 1 token ≈ 4 characters)
+            est_prompt_tokens = len(prompt) // 4
+            if max_tokens is None:
+                # Total target ~512, leave buffer
+                max_tokens = max(128, 512 - est_prompt_tokens - 50)
+
+            output = self.llm(prompt=prompt, max_tokens=max_tokens, temperature=temperature)
+
+            if 'choices' in output and len(output['choices']) > 0:
+                return output['choices'][0]['text'].strip()
+            return ""
         except Exception as e:
-            logger.error(f"LLM generation failed: {e}")
+            logger.error(f"Qwen generation failed: {e}")
             return "Error: Failed to generate answer."
+
+
 
 # Singleton instance for reuse
 llmClient = LLMClient()

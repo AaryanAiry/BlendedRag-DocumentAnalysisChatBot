@@ -9,3 +9,4 @@ python-multipart
 chromadb
 sentencepiece
 bitsandbytes
+rank-bm25
