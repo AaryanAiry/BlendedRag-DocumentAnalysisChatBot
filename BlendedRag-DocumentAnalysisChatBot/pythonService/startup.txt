@@ -1,0 +1,5 @@
+uvicorn app.main:app --reload
+
+streamlit run ui/streamlitApp.py
+
+tree -I '__pycache__,uploads' -L 6

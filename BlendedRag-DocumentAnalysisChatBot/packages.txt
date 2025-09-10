@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+pymupdf
+pydantic
+numpy
+sentence_transformers
+requests
+python-multipart
+chromadb
+sentencepiece
+bitsandbytes
+rank-bm25
+streamlit

@@ -52,7 +52,7 @@ def generate_answer(prompt: str, max_tokens: int = 512, temperature: float = 0.7
 # -------------------------------
 # Blended RAG Service
 # -------------------------------
-def query_document(docId: str, user_query: str, topK: int = 5) -> dict:
+def query_document(docId: str, user_query: str, topK: int = 10) -> dict:
     """
     Query a document using Query Refinement + Blended Retriever + Qwen + PostProcessor
     """
