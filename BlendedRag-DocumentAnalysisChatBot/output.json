@@ -1,0 +1,248 @@
+{
+  "metadata": {
+    "Title": "input"
+  },
+  "pages": [
+    {
+      "page_number": 1,
+      "size": {
+        "width": 612,
+        "height": 792
+      },
+      "layout": {
+        "columns": 3
+      },
+      "elements": [
+        {
+          "type": "table",
+          "title": null,
+          "n_rows": 10,
+          "n_cols": 1,
+          "headers": [
+            "This is a Generic BOLD title"
+          ],
+          "cells": [
+            [
+              "This is a Generic BOLD title"
+            ],
+            [
+              "Generic subheading 1:"
+            ],
+            [
+              "L\norem ipsum decor foretnx correitny coorfegrnade"
+            ],
+            [
+              "overepsum inter wooden sprucen. Lorem ipsum decor"
+            ],
+            [
+              "foretnx correitny coorfegrnade overepsum inter wooden"
+            ],
+            [
+              "sprucen. Lorem ipsum decor foretnx correitny."
+            ],
+            [
+              "coorfegrnade overepsum inter wooden sprucen. Lorem"
+            ],
+            [
+              "ipsum decor foretnx correitny coorfegrnade overepsum"
+            ],
+            [
+              "inter wooden sprucen. Lorem ipsum decor foretnx"
+            ],
+            [
+              "correitny coorfegrnade overepsum inter wooden sprucen"
+            ]
+          ],
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 612,
+            "h": 0
+          },
+          "page": 1
+        },
+        {
+          "type": "image",
+          "caption": null,
+          "alt_text": "",
+          "source": "extracted_images/page1_img8.png",
+          "ocr": {
+            "text": "",
+            "items": []
+          },
+          "position": {
+            "x": 0,
+            "y": 0,
+            "w": 1077,
+            "h": 701
+          }
+        },
+        {
+          "type": "text",
+          "content": "This",
+          "font": {
+            "name": "AAAAAA+Arial-BoldMT",
+            "size": 22.999999500000058
+          },
+          "position": {
+            "x": 154.59734325,
+            "y": 75.44775490404288,
+            "w": 47.26855819192383,
+            "h": 22.999999500000058
+          },
+          "column": 0
+        },
+        {
+          "type": "text",
+          "content": "Generic subheading",
+          "font": {
+            "name": "AAAAAA+Arial-BoldMT",
+            "size": 16.999999499999944
+          },
+          "position": {
+            "x": 72.0,
+            "y": 149.92443948154312,
+            "w": 163.35544884958009,
+            "h": 16.999999499999944
+          },
+          "column": 0
+        },
+        {
+          "type": "text",
+          "content": "Lorem ipsum decor\noverepsum inter",
+          "font": {
+            "name": "AAAAAA+Arial-BoldMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 72.0,
+            "y": 195.0355225175,
+            "w": 158.05371068999997,
+            "h": 41.80297799999994
+          },
+          "column": 0
+        },
+        {
+          "type": "text",
+          "content": "foretnx correitny\nsprucen. Lorem\ncoorfegrnade\nipsum decor foretnx\ninter wooden\ncorreitny coorfegrnade",
+          "font": {
+            "name": "CAAAAA+ArialMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 72.0,
+            "y": 556.3106725175,
+            "w": 180.09667941,
+            "h": 137.01489525
+          },
+          "column": 0
+        },
+        {
+          "type": "text",
+          "content": "is a Generic",
+          "font": {
+            "name": "AAAAAA+Arial-BoldMT",
+            "size": 22.999999500000058
+          },
+          "position": {
+            "x": 208.24952325,
+            "y": 75.44775490404288,
+            "w": 130.3682506919238,
+            "h": 22.999999500000058
+          },
+          "column": 1
+        },
+        {
+          "type": "text",
+          "content": "1:",
+          "font": {
+            "name": "AAAAAA+Arial-BoldMT",
+            "size": 16.999999499999944
+          },
+          "position": {
+            "x": 240.071655,
+            "y": 149.92443948154312,
+            "w": 15.11137747849611,
+            "h": 16.999999499999944
+          },
+          "column": 1
+        },
+        {
+          "type": "text",
+          "content": "foretnx correitny\nwooden sprucen.",
+          "font": {
+            "name": "CAAAAA+ArialMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 206.0595675,
+            "y": 195.0355225175,
+            "w": 158.04492252,
+            "h": 41.80297799999994
+          },
+          "column": 1
+        },
+        {
+          "type": "text",
+          "content": "coorfegrnade\nipsum decor foretnx\noverepsum inter\ncorreitny\nsprucen. Lorem ipsum\noverepsum",
+          "font": {
+            "name": "DAAAAA+Arial-ItalicMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 180.0703125,
+            "y": 556.3106725175,
+            "w": 180.06152501999998,
+            "h": 137.01489525
+          },
+          "column": 1
+        },
+        {
+          "type": "text",
+          "content": "BOLD title",
+          "font": {
+            "name": "BAAAAA+Arial-BoldItalicMT",
+            "size": 22.999999500000058
+          },
+          "position": {
+            "x": 345.00139575000003,
+            "y": 75.44775490404288,
+            "w": 112.40561704192385,
+            "h": 22.999999500000058
+          },
+          "column": 2
+        },
+        {
+          "type": "text",
+          "content": "coorfegrnade\nLorem ipsum decor",
+          "font": {
+            "name": "CAAAAA+ArialMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 348.1523475,
+            "y": 195.0355225175,
+            "w": 154.06347444000005,
+            "h": 41.80297799999994
+          },
+          "column": 2
+        },
+        {
+          "type": "text",
+          "content": "overepsum inter wooden\ncorreitny.\nwooden sprucen. Lorem\ncoorfegrnade overepsum\ndecor foretnx\ninter wooden sprucen",
+          "font": {
+            "name": "CAAAAA+ArialMT",
+            "size": 18.0
+          },
+          "position": {
+            "x": 309.09375,
+            "y": 556.3106725175,
+            "w": 214.15429656000003,
+            "h": 137.01489525
+          },
+          "column": 2
+        }
+      ]
+    }
+  ]
+}
